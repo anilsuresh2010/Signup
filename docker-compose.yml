@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  user-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver
+      - SPRING_DATASOURCE_USERNAME=sa
+      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.H2Dialect
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
+      - LOGGING_LEVEL_COM_ECOMMERCE_SIGNUP=INFO
+      - SERVER_PORT=8080
+    networks:
+      - ecommerce-network
+    depends_on:
+      - user-service-db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  user-service-db:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=signup
+      - MYSQL_USER=signup
+      - MYSQL_PASSWORD=signup_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - signup_mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    networks:
+      - ecommerce-network
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    restart: unless-stopped
+
+  # For testing with H2 (in-memory database)
+  user-service-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=test
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:testdb
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver
+      - SPRING_DATASOURCE_USERNAME=sa
+      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.H2Dialect
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=create-drop
+      - LOGGING_LEVEL_SIGNUP=DEBUG
+      - SERVER_PORT=8080
+    networks:
+      - ecommerce-network
+    profiles:
+      - test
+
+  # PostgreSQL alternative (uncomment if needed)
+  # user-service-postgres:
+  #   image: postgres:15
+  #   environment:
+  #     - POSTGRES_DB=user_service
+  #     - POSTGRES_USER=user_service
+  #     - POSTGRES_PASSWORD=user_service_pass
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - user_service_postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - ecommerce-network
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U user_service"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+
+networks:
+  ecommerce-network:
+    driver: bridge
+
+volumes:
+  signup_mysql_data:
+  signup_postgres_data:
+
