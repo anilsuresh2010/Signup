@@ -173,9 +173,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          flavor: |
+            latest=false
           tags: |
             type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image to ECR
         uses: docker/build-push-action@v5
